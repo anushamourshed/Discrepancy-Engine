@@ -1,0 +1,9 @@
+[general]
+menu_items = {}
+
+[client]
+showSidebarNavigation = false
+toolbarMode = "viewer"
+
+[browser]
+showSidebar = false
