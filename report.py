@@ -33,7 +33,8 @@ Line Item ID / ad group id,Ad Group ID,2
 Line Item ID / ad group id,adgroup_id,3
 Creative ID,Creative ID,1
 Creative ID,Ad Creative ID,2
-Creative ID,Master and Companion creative ID,3 
+Creative ID,Ad Server Creative ID,3                                        
+Creative ID,Master and Companion creative ID,4
 Creative ID,sa_cr,4
 Report Creative / creative name / Master and Companion creative,Creative Name,1
 Report Creative / creative name / Master and Companion creative,Creative,2
@@ -59,9 +60,10 @@ Publisher impressions,Ad server impressions,4
 Publisher impressions,Advertiser impressions,5
 Publisher impressions,Ad impressions,6
 Publisher impressions,Total impressions,7
-Publisher impressions,Net Counted Ads,8
-Publisher impressions,Gross Counted Ads,9
-Publisher impressions,Counts,10
+Publisher impressions,Impressions Delivered,8                                        
+Publisher impressions,Net Counted Ads,9
+Publisher impressions,Gross Counted Ads,10
+Publisher impressions,Counts,11
 Date,Date,1
 Date,Day,2
 Date,Report Date,3
@@ -90,8 +92,13 @@ SAMBA_MAPPING = {
     'sa_pl': 'Placement ID',
     'sa_li': 'Line Item ID / ad group id',
     'day_str': 'Date',
-    'sum__counts': 'Samba Impressions'
+    'sum__counts': 'Samba Impressions',
+    'counts': 'Samba Impressions',     
+    'Counts': 'Samba Impressions',
+    'Count': 'Samba Impressions',
+    'Count': 'Samba Impressions',
 }
+
 
 # ==============================================================================
 # 2. CORE HELPER FUNCTIONS (FROM CELL 2 & 3)
@@ -288,7 +295,10 @@ def clean_and_standardize_keys(df, id_cols, placeholders, metric_cols):
             exact_match_placeholders = [f"^{re.escape(str(p))}$" for p in placeholders]
             placeholder_regex = '|'.join(exact_match_placeholders)
             
+            # Use .apply() with re.sub to bypass potential .str accessor errors
             stripped_series = string_series.apply(lambda x: re.sub(r'\.0$', '', x))
+            
+            # Use pandas .str.replace for the case-insensitive regex replacement
             cleaned_series = stripped_series.str.replace(placeholder_regex, str(np.nan), case=False, regex=True)
             cleaned_series = cleaned_series.replace('nan', np.nan) 
             df[col] = cleaned_series.replace('<NA>', np.nan)
@@ -433,6 +443,14 @@ st.set_page_config(
     page_title="Discrepancy Report Generator",
     layout="centered"
 )
+
+# --- NEW: Add Logo ---
+LOGO_FILE = 'sambalogo.png'
+if os.path.isfile(LOGO_FILE):
+    st.image(LOGO_FILE, width=200)
+else:
+    st.warning(f"Note: Logo file '{LOGO_FILE}' not found. Place it in the same directory as the app to display it.")
+
 
 # --- Header ---
 st.title("Discrepancy Report Generator")
