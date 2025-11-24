@@ -322,18 +322,20 @@ def select_primary_key(df_client_filtered, df_samba_filtered, HIERARCHY, THRESHO
         client_validity = df_client_filtered[potential_id].count() / len(df_client_filtered)
         samba_validity = df_samba_filtered[potential_id].count() / len(df_samba_filtered)
         
+        # NOTE: THRESHOLD is now expected to be 0.80 based on the user request.
         if client_validity >= THRESHOLD and samba_validity >= THRESHOLD:
             primary_key = potential_id
             descriptive_name_key = NAME_MAP.get(primary_key)
             break
     
     if not primary_key:
+        # Adjusted error message to reflect the new 80% threshold
         error_message = (
-            "❌ RECONCILIATION FAILED: A matching ID column could not be found.\n\n"
+            "❌ RECONCILIATION FAILED: A matching ID column could not be found via Auto Select.\n\n"
             "Here's why:\n"
             "1. The program checks for 'Placement ID', 'Creative ID', and 'Line Item ID' in both files.\n"
-            "2. To work, at least ONE of these IDs must be present and mostly complete (95% valid) in BOTH your reports.\n\n"
-            "Please check your files to ensure they share a common, high-quality ID column."
+            "2. To work, at least ONE of these IDs must be present and mostly complete (80% valid) in BOTH your reports.\n\n"
+            "Please check your files or use the **Primary Key Override** option above."
         )
         raise Exception(error_message)
 
@@ -472,6 +474,17 @@ with col2:
 
 st.markdown("---")
 
+# --- NEW: Primary Key Override Input ---
+st.header("3. Primary Key Override (Optional) ⚙️")
+PRIMARY_KEY_OPTIONS = ["Auto Select (Recommended)", "Placement ID", "Creative ID", "Line Item ID / ad group id"]
+selected_key_override = st.selectbox(
+    "Manually select the ID column to reconcile on:",
+    PRIMARY_KEY_OPTIONS,
+    index=0 # Default to "Auto Select (Recommended)"
+)
+st.markdown("---")
+
+
 # --- Process Button and Main Logic ---
 if st.button("🚀 Generate Discrepancy Report", type="primary", use_container_width=True):
 
@@ -486,7 +499,10 @@ if st.button("🚀 Generate Discrepancy Report", type="primary", use_container_w
                 # 2. Define constants (from Cell 2)
                 PRIMARY_ID_HIERARCHY = ['Placement ID', 'Creative ID', 'Line Item ID / ad group id']
                 MISSING_VALUE_PLACEHOLDERS = ['N/A', 'plid', '0', 0]
-                VALIDITY_THRESHOLD = 0.95
+                
+                # --- CHANGE 1: Reduced from 0.95 to 0.80 ---
+                VALIDITY_THRESHOLD = 0.80 
+                
                 REQUIRED_ID_COLS = PRIMARY_ID_HIERARCHY
                 REQUIRED_DATE_COL = 'Date'
                 REQUIRED_CLIENT_METRIC = 'Publisher impressions'
@@ -563,10 +579,33 @@ if st.button("🚀 Generate Discrepancy Report", type="primary", use_container_w
                     df_samba_filtered, REQUIRED_ID_COLS, MISSING_VALUE_PLACEHOLDERS, [REQUIRED_SAMBA_METRIC]
                 )
 
-                # 7. Select Key (from Cell 4)
-                primary_key, descriptive_name_key = select_primary_key(
-                    df_client_filtered, df_samba_filtered, PRIMARY_ID_HIERARCHY, VALIDITY_THRESHOLD, NAME_MAP
-                )
+                # 7. Select Key (from Cell 4) - MODIFIED LOGIC
+                primary_key = None
+                descriptive_name_key = None
+
+                if selected_key_override == "Auto Select (Recommended)":
+                    primary_key, descriptive_name_key = select_primary_key(
+                        df_client_filtered, df_samba_filtered, PRIMARY_ID_HIERARCHY, VALIDITY_THRESHOLD, NAME_MAP
+                    )
+                else:
+                    # --- MANUAL OVERRIDE LOGIC (Change 2) ---
+                    potential_key = selected_key_override
+                    
+                    # Check if the chosen key exists in both files (must be > 0% available)
+                    if potential_key not in df_client_filtered.columns or potential_key not in df_samba_filtered.columns:
+                        missing_in = []
+                        if potential_key not in df_client_filtered.columns: missing_in.append("Client File")
+                        if potential_key not in df_samba_filtered.columns: missing_in.append("Samba File")
+                            
+                        raise Exception(f"❌ ERROR: The manually chosen ID **'{potential_key}'** is not available in the following file(s): {', '.join(missing_in)}. Please check your file headers or choose 'Auto Select'.")
+                    
+                    # Check for 0% availability (count == 0)
+                    if df_client_filtered[potential_key].count() == 0 or df_samba_filtered[potential_key].count() == 0:
+                         raise Exception(f"❌ ERROR: The manually chosen ID **'{potential_key}'** exists but is entirely empty (0% availability) in one or both filtered reports. Please choose 'Auto Select'.")
+                         
+                    primary_key = potential_key
+                    descriptive_name_key = NAME_MAP.get(primary_key)
+                
                 
                 # 8. Reconcile (from Cell 5)
                 df_discrepancy_report = reconcile_data(
