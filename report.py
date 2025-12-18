@@ -322,7 +322,7 @@ def select_primary_key(df_client_filtered, df_samba_filtered, HIERARCHY, THRESHO
         client_validity = df_client_filtered[potential_id].count() / len(df_client_filtered)
         samba_validity = df_samba_filtered[potential_id].count() / len(df_samba_filtered)
         
-        # NOTE: THRESHOLD is now expected to be 0.80 based on the user request.
+        # NOTE: THRESHOLD is expected to be 0.80.
         if client_validity >= THRESHOLD and samba_validity >= THRESHOLD:
             primary_key = potential_id
             descriptive_name_key = NAME_MAP.get(primary_key)
@@ -405,7 +405,7 @@ def reconcile_data(df_client_filtered, df_samba_filtered, primary_key, descripti
 
     # --- Calculation and Categorization ---
     df_final['Samba Impressions'] = pd.to_numeric(df_final['Samba Impressions'], errors='coerce')
-    df_final['Disc'] = (df_final['Client Impressions'] / df_final['Samba Impressions']) - 1.0
+    df_final['Disc'] = (df_final['Samba Impressions'] / df_final['Client Impressions']) - 1.0
 
     conditions = [
         (df_final['Samba Impressions'].isna()) | (df_final['Samba Impressions'] <= 0),
